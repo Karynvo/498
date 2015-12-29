@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Line Graph</title>
+  <script type="text/javascript" src="d3/d3.js"></script>
+  <style type="text/css">
+
+
+svg {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  fill:none;
+  stroke:#000;
+  shape-rendering: crispEdges;
+}
+
+.line {
+  fill: none;
+  stroke-width: 5px;
+}
+
+#tooltip {
+  font: 12px sans-serif;
+}
+
+table{
+  border: 1px solid black;
+}
+
+th, td{
+  font: 10px sans-serif;
+  text-align: center;
+  width: 85px;
+  height: 60px;
+  /*padding: 15px;*/
+  border: 1px solid black;
+}
+
+  </style>
+</head>
+<body>
+  <div width="960" height="100">
+    <table>
+      <tr>
+        <th>Fall 2010</th>
+        <th>Spring 2011</th>
+        <th>Fall 2011</th>
+        <th>Spring 2012</th>
+        <th>Fall 2012</th>
+        <th>Spring 2013</th>
+        <th>Fall 2013</th>
+        <th>Spring 2014</th>
+        <th>Fall 2014</th>
+        <th>Spring 2015</th>
+      </tr>
+      <tr id="newRow">
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+  <script type="text/javascript">
+
+  var clicked_major;
+
+  function findSemester(code){
+    var baseNumber = parseInt(code) % 2000; // gives something like 114
+
+    var year = Math.floor(baseNumber / 10); // 114 / 10 = 11
+
+    var semester = baseNumber - (year*10); // 114 - 110 = 4
+
+    var returnString;
+    switch(semester){
+      case 4: returnString = "Fall "; break;
+      case 1: returnString = "Spring "; break;
+      default: returnString = "Unknown"; break;
+    }
+
+    returnString = returnString + "20" + year;
+    return returnString;
+  }
+
+  var margin = {top: 20, right: 300, bottom: 30, left: 50},
+  width = 960 - margin.left - margin.right,
+  height = 600 - margin.top - margin.bottom;
+
+  var svg = d3.select("body").append("svg")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  var gender_svg = d3.select("body").append("svg")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  var x = d3.scale.ordinal()
+    .domain([findSemester("2104"), findSemester("2111"), findSemester("2114"), findSemester("2121"), findSemester("2124"), findSemester("2131"), findSemester("2134"), findSemester("2141"), findSemester("2144"), findSemester("2151")])
+    .rangePoints([0, width]);
+
+var y = d3.scale.log()
+    .range([height, 0]);
+
+var y2 = d3.scale.log()
+    .range([height, 0]);
+
+var color = d3.scale.category20();
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .ticks(30, ",.1s");
+
+var line = d3.svg.line()
+    .interpolate("linear")
+    .x(function(d) { /*console.log("semester: " + d.key);*/ return x(findSemester(d.key)); })
+    .y(function(d) { /*console.log("number people: " + d.values.length);*/ return y(d.values.length); });
+
+var lineM = d3.svg.line()
+    .interpolate("linear")
+    //.defined(function(d){ return d.key != "2121"; })
+    .x(function(d) { /*console.log("semester: " + d.key);*/ return x(findSemester(d.key)); })
+    .y(function(d) {
+      //console.log(d.values);
+      var allGenderData = d.values;
+      var i = 0;
+      while(i < allGenderData.length){
+        //console.log(allGenderData[i]);
+        if(allGenderData[i].key == 'M'){
+          //console.log("number of males: " + allGenderData[i].values.length);
+          return y2(allGenderData[i].values.length);
+        }else
+          i++;
+      }
+      return y2(1);
+    });
+
+var csv_data;
+var nested_data;
+var gender_data;
+var flipped_data;
+
+  d3.csv("newData.csv", function(error, data){
+    if (error) { console.log(error); }
+    else{
+      console.log("Success!");
+      color.domain(d3.keys(data[0]).filter(function(key) { return key == "plan_descr"; }));
+
+      csv_data = data;
+
+      nested_data = d3.nest()
+                          .key(function(d){ return d.STRM; })
+                          .key(function(d){ return d.plan_descr; })
+                          .entries(data);
+      flipped_data = d3.nest()
+                          .key(function(d){ return d.plan_descr; })
+                          .key(function(d){ return d.STRM; })
+                          .entries(data);
+
+      gender_data = d3.nest()
+                          .key(function(d){ return d.plan_descr; })
+                          .key(function(d){ return d.STRM; })
+                          .key(function(d){ return d.GENDER_CD; })
+                          .entries(data);
+
+  y.domain([1, 
+    d3.max(nested_data, 
+      function(element, index, array) { 
+        return d3.max(element.values,
+          function(element, index, array){ return element.values.length; }
+        );
+      }
+    )
+  ]);
+
+  y2.domain([1, 
+    d3.max(nested_data, 
+      function(element, index, array) { 
+        return d3.max(element.values,
+          function(element, index, array){ return element.values.length; }
+        );
+      }
+    )
+  ]);
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis);
+
+  gender_svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis);
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis);
+
+  gender_svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis);
+
+  var majors = svg.selectAll(".major")
+    .data(flipped_data, function(d) { /*console.log(d.key);*/ return d.key; })
+    .enter().append("g")
+    .attr("class", "major");
+
+    majors.append("path")
+    .attr("class", "line")
+    .attr("d", function(d) { return line(d.values); })
+    .style("stroke", "#d3d3d3");
+
+  var majors2 = gender_svg.selectAll(".major")
+    .data(gender_data, function(d) { /*console.log(d.key);*/ return d.key; })
+    .enter().append("g")
+    .attr("class", "major");
+
+    majors2.append("path")
+    .attr("class", "line")
+    .attr("d", function(d) { return lineM(d.values); })
+    .style("stroke", "#d3d3d3");
+
+    var pointsGroup = svg.selectAll(".major")
+      .append("g");
+
+    var innerPointSelection = pointsGroup.selectAll("circle");
+
+    innerPointSelection
+      .data(function(d){ return /*expandArray(*/d.values/*)*/; })
+      .enter().append("circle")
+      .attr("class", "point")
+      .attr("cx", function(d){ return x(findSemester(d.key)); })
+      .attr("cy", function(d){ return y(d.values.length); })
+      .attr("r", 7)
+      .style("fill", "#ffffff")
+      .style("stroke", "#20208b")
+      .style("stroke-width", 3)
+      .append("title")
+      .text(function(d){
+        return findSemester(d.key) + ": " + d.values.length;
+      });
+
+    d3.selectAll(".point")
+      .attr("visibility", "hidden");
+
+    var newText = d3.selectAll(".major").append("text").attr("class", "label").text(function(d){ return d.key; });
+
+    newText.attr("x", function(d){
+      var allSemesters = d.values;
+      var lastSemester = allSemesters[allSemesters.length - 1];
+      return x(findSemester(lastSemester.key))+15;
+    })
+    .attr("y", function(d){
+      var allSemesters = d.values;
+      var lastSemester = allSemesters[allSemesters.length - 1];
+      return y(lastSemester.values.length);
+    })
+    .attr("visibility", "hidden");
+
+    d3.selectAll(".major")
+    .on("mouseover", function() {
+      if(clicked_major == null || d3.select(this).data()[0].key != clicked_major.data()[0].key){
+        d3.select(this).selectAll(".line")
+          .style("stroke", "#20208b");
+
+        d3.select(this).selectAll(".point")
+          .attr("visibility", "visible");
+
+        d3.select(this)
+          .select("text")
+          .attr("visibility", "visible");
+
+      }
+
+        this.parentElement.appendChild(this);
+      })
+    .on("click", function() {
+        clicked_major = d3.select(this);
+
+        wasClicked();
+
+        this.parentElement.appendChild(this);
+
+      })
+    .on("mouseout", function(){
+      if(clicked_major == null || d3.select(this).data()[0].key != clicked_major.data()[0].key){
+        d3.select(this).selectAll(".line")
+        .style("stroke", "#d3d3d3");
+        
+        d3.select(this).selectAll(".point")
+            .attr("visibility", "hidden");
+
+        d3.select(this)
+            .select("text")
+            .attr("visibility", "hidden");
+      }
+    });
+  }
+});
+
+function wasClicked(){
+  d3.selectAll(".line")
+  .style("stroke", "#d3d3d3");
+
+  d3.selectAll(".point")
+  .attr("visibility", "hidden");
+
+  d3.selectAll(".label")
+  .attr("visibility", "hidden");
+
+  d3.select("#newRow").html("");
+
+  // populate stats table
+  var arr = clicked_major.selectAll("circle").data();
+  var currVals = [];
+  arr.forEach(function(element){ currVals.push(element.key); });
+  //console.log(currVals);
+  var allXValues = [ "2104", "2111", "2114", "2121", "2124", "2131", "2134", "2141", "2144", "2151" ];
+  var i = 0;
+  arr.forEach(function(element){
+    while(i < allXValues.length){
+      if(currVals.indexOf(allXValues[i]) < 0){
+        d3.select("#newRow").append("td").text("0");
+        i++;
+      }else{
+        d3.select("#newRow").append("td").text(element.values.length);
+        i++;
+        break;
+      }
+    }
+  });
+
+  for(; i < allXValues.length; i++)
+    d3.select("#newRow").append("td").text("0");
+
+  clicked_major.selectAll(".line")
+  .style("stroke", "#ff0000");
+
+  clicked_major.selectAll(".point")
+  .attr("visibility", "visible");
+
+  clicked_major.selectAll(".label")
+  .attr("visibility", "visible");
+
+}
+
+function expandArray(currSet){
+  var allXValues = [ "2104", "2111", "2114", "2121", "2124", "2131", "2134", "2141", "2144", "2151"];
+  var emptyArray = [];
+  var currVals = [];
+  currSet.forEach(function(element){ currVals.push(element.key); });
+  allXValues.forEach(function(element){
+    if(currVals.indexOf(element) < 0)
+      currSet.push({ key: element, values: emptyArray });
+  });
+  console.log(currSet);
+  return currSet;
+}
+  </script>
+</body>
+</html>
