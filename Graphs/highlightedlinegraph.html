@@ -25,16 +25,16 @@ svg {
   stroke-width: 5px;
 }
 
-#tooltip {
-        /*position: absolute;*/
+/*#tooltip {
+        position: absolute;
         width: 100px;
         height: 100px;
         padding: 10px;
         background-color: blue;
-        /*border-radius: 10px;
-        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);*/
+        border-radius: 10px;
+        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
         border-color: black;
-        /*pointer-events: none;*/
+        pointer-events: none;
       }
       
       #tooltip.hidden {
@@ -46,7 +46,20 @@ svg {
         font-family: sans-serif;
         font-size: 16px;
         line-height: 20px;
-      }
+      }*/
+
+div.tooltip { 
+    position: absolute;     
+    text-align: center;     
+    width: 150px;          
+    height: 30px;         
+    padding: 2px;       
+    font: 12px sans-serif;    
+    background: white; 
+    border: 1px solid black;    
+    border-radius: 8px;     
+    pointer-events: none;     
+}
 
 table{
   border: 1px solid black;
@@ -77,10 +90,6 @@ h1{
   </style>
 </head>
 <body>
-  <div id="tooltip" class="hidden">
-      <p><strong>Important Label Heading</strong></p>
-      <p><span id="value">100</span>%</p>
-    </div>
 
   <script type="text/javascript">
 
@@ -138,6 +147,10 @@ var diffyAxis = d3.svg.axis()
     .scale(diffY)
     .orient("left")
     .ticks(10, ",.1s");
+
+var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
 
 var line = d3.svg.line()
     .interpolate("linear")
@@ -533,7 +546,7 @@ function addLabels(currSVG, match){
 function addInteraction(currSVG, id){
 
       currSVG.selectAll(".major")
-        .on("mouseover", function() {
+        .on("mouseover", function(d) {
           // if(clicked_major == null || d3.select(this).data()[0].key != clicked_major.data()[0].key){
             
             //console.log(d3.select(this)[0][0].id);
@@ -546,9 +559,16 @@ function addInteraction(currSVG, id){
             sameMajorForAll.selectAll(".point")
               .attr("visibility", "visible");
 
-            sameMajorForAll
-              .select("text")
-              .attr("visibility", "visible");
+            // console.log(d);
+
+            div.style("opacity", .9)
+              .html(d.key)
+              .style("left", (d3.event.pageX)+"px")
+              .style("top", (d3.event.pageY - 28) + "px");
+
+            // sameMajorForAll
+            //   .select("text")
+            //   .attr("visibility", "visible");
 
             // sameMajorForAll.select("#tooltip").classed("hidden", false);
 
@@ -579,9 +599,11 @@ function addInteraction(currSVG, id){
             sameMajorForAll.selectAll(".point")
                 .attr("visibility", "hidden");
 
-            sameMajorForAll
-                .select("text")
-                .attr("visibility", "hidden");
+            div.style("opacity", 0);
+
+            // sameMajorForAll
+            //     .select("text")
+            //     .attr("visibility", "hidden");
 
             // sameMajorForAll.select("#tooltip").classed("hidden", true);
           // }
