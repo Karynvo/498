@@ -124,8 +124,12 @@ h1{
 var y = d3.scale.log()
     .range([height, 0]);
 
+var y2 = d3.scale.log();
+    // .domain([-10,10])
+    // .range([0, 10]);
+
 var diffY = d3.scale.linear()
-            .domain([-10, 10])
+            .domain([-2, 2])
             .range([height, 0]);
 
 var color = d3.scale.category20();
@@ -136,7 +140,7 @@ var xAxis = d3.svg.axis()
 
 var diffxAxis = d3.svg.axis()
     .scale(x)
-    .orient("center");
+    .orient("bottom");
 
 var yAxis = d3.svg.axis()
     .scale(y)
@@ -146,7 +150,7 @@ var yAxis = d3.svg.axis()
 var diffyAxis = d3.svg.axis()
     .scale(diffY)
     .orient("left")
-    .ticks(10, ",.1s");
+    .ticks(10, ",.3s");
 
 var div = d3.select("body").append("div")
     .attr("class", "tooltip")
@@ -156,6 +160,11 @@ var line = d3.svg.line()
     .interpolate("linear")
     .x(function(d) { /*console.log("semester: " + d.key);*/ return x(findSemester(d.key)); })
     .y(function(d) { /*console.log("number people: " + d.values.length);*/ return y(d.values.length); });
+
+var line2 = d3.svg.line()
+    .interpolate("linear")
+    .x(function(d) { /*console.log("semester: " + d.key);*/ return x(findSemester(d.key)); })
+    .y(function(d) { /*console.log("number people: " + d.values.length);*/ return diffY(d.values); });
 
 var csv_data;
 var nested_data;
@@ -186,6 +195,8 @@ var resident_data;
                           .key(function(d){ return d.STRM; })
                           .key(function(d){ return d.GENDER_CD; })
                           .entries(data);
+
+      // console.log(gender_data);
 
       ethnicity_data = d3.nest()
                           .key(function(d){ return d.plan_descr; })
@@ -250,20 +261,95 @@ function createLineGraph(id, nestedData, currKey, outerDiv){
     createAxes(svg);
     createLines(svg, nestedData, currKey);
     addPoints(svg, currKey);
-    addLabels(svg, currKey);
-    addInteraction(svg, id);
+    // addLabels(svg, currKey);
+    addInteraction(svg);
 }
 
 function createDiffGraph(id, nestedData, currKey, outerDiv){
   var svg = createSVG(id, outerDiv);
   svg.append("g")
       .attr("class", "x_axis")
-      .attr("transform", "translate(0," + height + ")")
+      .attr("transform", "translate(0," + height/2 + ")")
       .call(diffxAxis);
 
   svg.append("g")
       .attr("class", "y_axis")
       .call(diffyAxis);
+
+  //createLines
+    var relevantData;
+
+  svg.selectAll(".major")
+    .data(gender_data, function(d) { /*console.log(d.key);*/ return d.key; })
+    .enter().append("g")
+    .attr("class", "major")
+    .attr("id", function(d){ 
+      return getValidId(d.key);
+    })
+    .append("path")
+    .attr("class", "line")
+    .attr("d", function(d) { 
+
+        return line2(getRelevantData2(d));
+
+    })
+    .style("stroke", "#d3d3d3");
+
+
+  //addPoints
+    var pointsGroup = svg.selectAll(".major")
+      .append("g");
+
+    var innerPointSelection = pointsGroup.selectAll("circle");
+    // console.log(innerPointSelection.data());
+    innerPointSelection
+      .data(function(d){ 
+          return getRelevantData2(d);
+      })
+      .enter().append("circle")
+      .attr("class", "point")
+      .attr("cx", function(d){ /*console.log(d.key);*/ return x(findSemester(d.key)); })
+      .attr("cy", function(d){ /*console.log(d.values);*/ return diffY(d.values); })
+      .attr("r", 7)
+      .style("fill", "#ffffff")
+      .style("stroke", "#20208b")
+      .style("stroke-width", 3)
+      .append("title")
+      .text(function(d){
+        return findSemester(d.key) + ": " + d.values;
+      });
+
+    svg.selectAll(".point")
+      .attr("visibility", "hidden");
+
+  //addLabels
+  var newText = svg.selectAll(".major").append("text").attr("class", "label").text(function(d){ return d.key; });
+
+      newText.attr("x", function(d){
+      var allSemesters;
+
+        allSemesters = getRelevantData2(d);
+        // console.log(allSemesters);
+
+      if(allSemesters.length != 0){
+        var lastSemester = allSemesters[allSemesters.length - 1];
+        return x(findSemester(lastSemester.key))+15;
+      }else
+        return 0;
+    })
+    // .style("top", function(d){
+      .attr("y", function(d){
+      var allSemesters;
+        allSemesters = getRelevantData2(d);
+      if(allSemesters.length != 0){
+        var lastSemester = allSemesters[allSemesters.length - 1];
+        return diffY(lastSemester.values);
+      }else
+        return 0;
+    })
+    .attr("visibility", "hidden");
+
+  addInteraction(svg);
 }
 
 function wasClicked(id){
@@ -330,41 +416,41 @@ function wasClicked(id){
 //   return currSet;
 // }
 
-function createTable(nameOfSVG){
-  var div = d3.select("body")
-    .append("div")
-    .attr("width", 960)
-    .attr("height", 100)
-    .attr("id", nameOfSVG);
+// function createTable(nameOfSVG){
+//   var div = d3.select("body")
+//     .append("div")
+//     .attr("width", 960)
+//     .attr("height", 100)
+//     .attr("id", nameOfSVG);
 
-  var table = div.append("table");
+//   var table = div.append("table");
 
-  // add table
-  var firstRow = table.append("tr");
+//   // add table
+//   var firstRow = table.append("tr");
 
-  var allSemesters = ["F 10", 
-        "S 11",
-        "F 11",
-        "S 12",
-        "F 12",
-        "S 13",
-        "F 13",
-        "S 14",
-        "F 14",
-        "S 15"];
+//   var allSemesters = ["F 10", 
+//         "S 11",
+//         "F 11",
+//         "S 12",
+//         "F 12",
+//         "S 13",
+//         "F 13",
+//         "S 14",
+//         "F 14",
+//         "S 15"];
 
-  allSemesters.forEach(function(element){
-    firstRow.append("th")
-      .html(element);
-  });
+//   allSemesters.forEach(function(element){
+//     firstRow.append("th")
+//       .html(element);
+//   });
 
-  var newRow = table.append("tr").attr("id", "newRow");
+//   var newRow = table.append("tr").attr("id", "newRow");
 
-  allSemesters.forEach(function(element){
-    newRow.append("td")
-  });
+//   allSemesters.forEach(function(element){
+//     newRow.append("td")
+//   });
 
-}
+// }
 
 function createSVG(nameOfSVG, outerDiv){
   
@@ -437,9 +523,6 @@ function createLines(currSVG, currData, match){
       }
     })
     .style("stroke", "#d3d3d3");
-
-
-
 }
 
 function getRelevantData(d, match) { 
@@ -463,6 +546,45 @@ function getRelevantData(d, match) {
         }
       );
       //console.log(newArray);
+      return newArray; 
+    }
+
+function getRelevantData2(d) { 
+      var oneLineArray = d.values;
+      //console.log(oneLineArray);
+      var newArray = [];
+      oneLineArray.forEach( 
+        function(element){
+          // console.log(element.values);
+          var anotherArray = element.values;
+          var currSemester = element.key;
+          var numMales = 0;
+          var numFemales = 0;
+          anotherArray.forEach(
+            function(elem){
+              //console.log(elem.values);
+              // var studentsInMajor = elem.values;
+              if(elem.key == 'M'){
+                numMales = elem.values.length;
+                // console.log("numMales: " + numMales);
+                numMales = y2(numMales);
+                // console.log("log numMales: " + numMales);
+              }else{ // 'F'
+                numFemales = elem.values.length;
+                // console.log("numFemales: " + numFemales);
+                numFemales = y2(numFemales);
+                // console.log("log numFemales: " + numFemales);
+              }
+            }
+          );
+          var ratio;
+          // when one male, 0 females = 0
+          ratio = numMales - numFemales;
+          // console.log("ratio: " + ratio);
+          newArray.push({ key: currSemester, values: ratio });
+        }
+      );
+      // console.log(newArray);
       return newArray; 
     }
 
@@ -543,7 +665,7 @@ function addLabels(currSVG, match){
     .attr("visibility", "hidden");
 }
 
-function addInteraction(currSVG, id){
+function addInteraction(currSVG){
 
       currSVG.selectAll(".major")
         .on("mouseover", function(d) {
