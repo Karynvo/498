@@ -20,33 +20,10 @@ svg {
   shape-rendering: crispEdges;
 }
 
-.line {
+.line, .point {
   fill: none;
   stroke-width: 5px;
 }
-
-/*#tooltip {
-        position: absolute;
-        width: 100px;
-        height: 100px;
-        padding: 10px;
-        background-color: blue;
-        border-radius: 10px;
-        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
-        border-color: black;
-        pointer-events: none;
-      }
-      
-      #tooltip.hidden {
-        display: none;
-      }
-      
-      #tooltip p {
-        margin: 0;
-        font-family: sans-serif;
-        font-size: 16px;
-        line-height: 20px;
-      }*/
 
 div.tooltip { 
     position: absolute;     
@@ -113,8 +90,8 @@ h1{
     return returnString;
   }
 
-  var margin = {top: 20, right: 100, bottom: 70, left: 50},
-  width = 400 - margin.left - margin.right,
+  var margin = {top: 20, right: 25, bottom: 70, left: 30},
+  width = 300 - margin.left - margin.right,
   height = 600 - margin.top - margin.bottom;
 
   var x = d3.scale.ordinal()
@@ -138,10 +115,6 @@ var xAxis = d3.svg.axis()
     .scale(x)
     .orient("bottom");
 
-var diffxAxis = d3.svg.axis()
-    .scale(x)
-    .orient("bottom");
-
 var yAxis = d3.svg.axis()
     .scale(y)
     .orient("left")
@@ -150,7 +123,7 @@ var yAxis = d3.svg.axis()
 var diffyAxis = d3.svg.axis()
     .scale(diffY)
     .orient("left")
-    .ticks(10, ",.3s");
+    .ticks(10, ",.1s");
 
 var div = d3.select("body").append("div")
     .attr("class", "tooltip")
@@ -186,7 +159,7 @@ var resident_data;
                           .key(function(d){ return d.plan_descr; })
                           .entries(data);
       flipped_data = d3.nest()
-                          .key(function(d){ return d.plan_descr; })
+                          .key(function(d){ return d.plan_descr; }).sortKeys(d3.ascending)
                           .key(function(d){ return d.STRM; })
                           .entries(data);
 
@@ -195,8 +168,6 @@ var resident_data;
                           .key(function(d){ return d.STRM; })
                           .key(function(d){ return d.GENDER_CD; })
                           .entries(data);
-
-      // console.log(gender_data);
 
       ethnicity_data = d3.nest()
                           .key(function(d){ return d.plan_descr; })
@@ -221,6 +192,17 @@ var resident_data;
     )
   ]);
 
+/* DROPDOWN BOX */
+  var selectArea = d3.select("body").append("div").attr("class", "major-select");
+
+  selectArea.append("label").html("Select a major: ");
+  selectArea.append("select").attr("onchange", "selected(this.value)");
+
+
+  selectArea.select("select").selectAll("option").data(flipped_data).enter().append("option").html(function(d){ return d.key; }).attr("value", function(d){ return getValidId(d.key); });
+
+
+/* DROPDOWN BOX END */
 
   d3.select("body").append("div").attr("id", "all_div").attr("class", "outerDiv");
   createLineGraph("all", flipped_data, '', "all_div");
@@ -233,17 +215,18 @@ var resident_data;
   createDiffGraph("gender_diff", gender_data, 'MF', "gender_div");
 
   d3.select("body").append("div").attr("id", "ethnicity_div").attr("class", "outerDiv");
-  createLineGraph("international", ethnicity_data, 'ALIEN', "ethnicity_div");
 
   createLineGraph("white", ethnicity_data, 'WHITE', "ethnicity_div");
 
   createLineGraph("hispanic", ethnicity_data, 'HISPA', "ethnicity_div");
 
-  createLineGraph("other", ethnicity_data, 'OTHER', "ethnicity_div");
+  createLineGraph("black", ethnicity_data, 'BLACK', "ethnicity_div");
 
   createLineGraph("asian", ethnicity_data, 'ASIAN', "ethnicity_div");
 
-  createLineGraph("black", ethnicity_data, 'BLACK', "ethnicity_div");
+  createLineGraph("international", ethnicity_data, 'ALIEN', "ethnicity_div");
+
+  createLineGraph("other", ethnicity_data, 'OTHER', "ethnicity_div");
 
   d3.select("body").append("div").attr("id", "resident_div").attr("class", "outerDiv");
   createLineGraph("residents", resident_data, 'R', "resident_div");
@@ -269,8 +252,13 @@ function createDiffGraph(id, nestedData, currKey, outerDiv){
   var svg = createSVG(id, outerDiv);
   svg.append("g")
       .attr("class", "x_axis")
-      .attr("transform", "translate(0," + height/2 + ")")
-      .call(diffxAxis);
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+        .selectAll("text")
+        .attr("x", -10)
+        .attr("y", 0)
+        .attr("transform", "rotate(-65)")
+        .style("text-anchor", "end");
 
   svg.append("g")
       .attr("class", "y_axis")
@@ -500,26 +488,10 @@ function createLines(currSVG, currData, match){
     .append("path")
     .attr("class", "line")
     .attr("d", function(d) { 
-      // if(match == ''){
-      //   relevantData = d.values;
-      //   // console.log(currMajor);
-      //   // if(currMajor == "Envr_Hydrology_and_Water_Res"){
-      //   //   console.log(relevantData);
-      //   // }
-      //   // return line(relevantData); 
-      // }else{
-      //   relevantData = getRelevantData(d, match);
-      //   // return line(relevantData);
-      // }
-      // // bindToId(relevantData, currMajor, currSVG);
-      // return line(relevantData);
-
       if(match == ''){
         return line(d.values);
-        // return line(relevantData); 
       }else{
         return line(getRelevantData(d, match));
-        // return line(relevantData);
       }
     })
     .style("stroke", "#d3d3d3");
@@ -668,10 +640,8 @@ function addLabels(currSVG, match){
 function addInteraction(currSVG){
 
       currSVG.selectAll(".major")
+
         .on("mouseover", function(d) {
-          // if(clicked_major == null || d3.select(this).data()[0].key != clicked_major.data()[0].key){
-            
-            //console.log(d3.select(this)[0][0].id);
             var currGId = d3.select(this)[0][0].id;
             var sameMajorForAll = d3.selectAll("#" + currGId);
 
@@ -681,37 +651,17 @@ function addInteraction(currSVG){
             sameMajorForAll.selectAll(".point")
               .attr("visibility", "visible");
 
-            // console.log(d);
-
             div.style("opacity", .9)
               .html(d.key)
               .style("left", (d3.event.pageX)+"px")
               .style("top", (d3.event.pageY - 28) + "px");
 
-            // sameMajorForAll
-            //   .select("text")
-            //   .attr("visibility", "visible");
-
-            // sameMajorForAll.select("#tooltip").classed("hidden", false);
-
-          // }
-
-
-
             sameMajorForAll[0].forEach(function(element){
               element.parentElement.appendChild(element);
             });
           })
-        // .on("click", function() {
-        //     clicked_major = d3.select(this);
 
-            // wasClicked(id);
-
-          //   this.parentElement.appendChild(this);
-
-          // })
         .on("mouseout", function(){
-          // if(clicked_major == null || d3.select(this).data()[0].key != clicked_major.data()[0].key){
             var currGId = d3.select(this)[0][0].id;
             var sameMajorForAll = d3.selectAll("#" + currGId);
 
@@ -721,15 +671,67 @@ function addInteraction(currSVG){
             sameMajorForAll.selectAll(".point")
                 .attr("visibility", "hidden");
 
+            sameMajorForAll[0].forEach(function(element){
+              element.parentElement.appendChild(element);
+            });
+
             div.style("opacity", 0);
-
-            // sameMajorForAll
-            //     .select("text")
-            //     .attr("visibility", "hidden");
-
-            // sameMajorForAll.select("#tooltip").classed("hidden", true);
-          // }
         });
+}
+
+function addInteractionById(currId){
+
+      d3.selectAll("#" + currId).selectAll(".line")
+            .style("stroke", "#d3d3d3");
+            
+            d3.selectAll("#" + currId).selectAll(".point")
+                .attr("visibility", "hidden");
+
+      d3.selectAll("#" + currId)
+
+        .on("mouseover", function(d) {
+
+            d3.selectAll("#" + currId).selectAll(".line")
+              .style("stroke", "#20208b");
+
+            d3.selectAll("#" + currId).selectAll(".point")
+              .attr("visibility", "visible");
+
+            div.style("opacity", .9)
+              .html(d.key)
+              .style("left", (d3.event.pageX)+"px")
+              .style("top", (d3.event.pageY - 28) + "px");
+
+            d3.selectAll("#" + currId)[0].forEach(function(element){
+              element.parentElement.appendChild(element);
+            });
+          })
+
+        .on("mouseout", function(){
+
+            d3.selectAll("#" + currId).selectAll(".line")
+            .style("stroke", "#d3d3d3");
+            
+            d3.selectAll("#" + currId).selectAll(".point")
+                .attr("visibility", "hidden");
+
+            div.style("opacity", 0);
+        });
+}
+
+function removeInteractionById(currId){
+  d3.selectAll("#" + currId)
+    .on("mouseover", function(d){ 
+        div.style("opacity", .9)
+              .html(d.key)
+              .style("left", (d3.event.pageX)+"px")
+              .style("top", (d3.event.pageY - 28) + "px");
+
+        d3.selectAll("#" + currId)[0].forEach(function(element){
+              element.parentElement.appendChild(element);
+            });
+    })
+    .on("mouseout", function(){ div.style("opacity", 0); });
 }
 
 function getValidId(majorName){
@@ -742,6 +744,29 @@ function getValidId(majorName){
 function bindToId(relevantData, currMajor, currSVG){
   console.log(currMajor);
   currSVG.select("#" + currMajor).data(relevantData);
+}
+
+var selectedId;
+
+function selected(currId){
+  // console.log(currId);
+  if(selectedId != null){ 
+    addInteractionById(selectedId); 
+  }
+  selectedId = currId;
+  var sameMajorForAll = d3.selectAll("#" + currId);
+
+            sameMajorForAll.selectAll(".line")
+              .style("stroke", "#FF0000");
+
+            sameMajorForAll.selectAll(".point")
+              .attr("visibility", "visible");
+
+            sameMajorForAll[0].forEach(function(element){
+              element.parentElement.appendChild(element);
+            });
+
+  removeInteractionById(currId);
 }
 
   </script>
