@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Test Bed</title>
+  <script type="text/javascript" src="d3/d3.js"></script>
+  <script type="text/javascript" src="Queue.js"></script>
+  <style type="text/css">
+
+
+	.node circle {
+	  fill: #fff;
+	  stroke: steelblue;
+	  stroke-width: 3px;
+	}
+
+	.node text { font: 12px sans-serif; }
+
+	.link {
+	  fill: none;
+	  stroke: #ccc;
+	  stroke-width: 2px;
+	}
+	
+    
+  </style>
+</head>
+<body>
+
+<script type="text/javascript">
+function findSemester(code){
+    var baseNumber = parseInt(code) % 2000; // gives something like 114
+
+    var year = Math.floor(baseNumber / 10); // 114 / 10 = 11
+
+    var semester = baseNumber - (year*10); // 114 - 110 = 4
+
+    var returnString;
+    switch(semester){
+      case 4: returnString = "Fall "; break;
+      case 1: returnString = "Spring "; break;
+      default: returnString = "Unknown"; break;
+    }
+
+    returnString = returnString + /*"20" + */year;
+    return returnString;
+  }
+
+function binarySearch(maj, dataArray){
+	var upperBound = dataArray.length-1; // 370
+	var lowerBound = 0;
+	var pivot = Math.floor((lowerBound+upperBound)/2);
+
+	// console.log("pivot is " + pivot);
+	// console.log(dataArray[pivot].key);
+
+	var currMaj = dataArray[pivot].key;
+
+	while(true){
+		if(currMaj.localeCompare(maj) < 0)
+			// is above
+			lowerBound = pivot + 1;
+		else if(currMaj.localeCompare(maj) > 0)
+			// is below
+			upperBound = pivot - 1;
+		else return dataArray[pivot];
+		pivot = Math.floor((lowerBound+upperBound)/2);
+		currMaj = dataArray[pivot].key;
+	}
+
+	// does not account for values we can't find
+
+}
+
+function Node(name){
+	this.name = name;
+	// this.parent = null;
+	this.count = 1;
+	this.children = [];
+	this.level = 0;
+}
+
+Node.prototype = {
+	constructor: Node,
+	setLevel:function(level){
+		this.level = level;
+	},
+	seeIfChildExists:function(childName){
+		// console.log("Child name is: " + childName);
+		var returnVal = false;
+		this.children.forEach(
+			function(child){
+				// console.log("child.name is: " + child.name);
+				if(child.name == childName){
+					returnVal = true;
+				}
+			}
+		);
+		return returnVal;
+	},
+	retrieveChild:function(childName){
+		var returnVal = null;
+		this.children.forEach(
+			function(child){
+				if(child.name == childName)
+					returnVal = child;
+			}
+		);
+		return returnVal;
+	},
+	addChild:function(childToAdd){
+		// console.log(this.seeIfChildExists(childToAdd));
+		var child;
+		if(this.seeIfChildExists(childToAdd)){
+			// console.log("true");
+			child = this.retrieveChild(childToAdd);
+			child.count++;
+		}else{
+			child = new Node(childToAdd)
+			this.children.push(child);
+		}
+		return child;
+	},
+	addToCount:function(){
+		this.count++;
+	},
+	// addParent:function(par){
+	// 	this.parent = par;
+	// },
+	printInfo:function(){
+		console.log("Level: " + this.level + "\tNode: " + this.name + "\tCount: " + this.count);
+	},
+	printTree:function(){
+		this.printInfo();
+		this.children.forEach(
+			function(element){
+				element.printTree();
+			}
+		);
+	},
+	printInOrder:function(){
+		var i;
+		// 10 is supposed to be the height..fix
+		for(i = 1; i <= 10; i++){
+			printLevel(this, i);
+		}
+	},
+	height:function(){
+		var biggestNumber = 1;
+		this.children.forEach(
+			function(element){
+				biggestNumber = biggestNumber + element.height();
+			}
+		);
+	}
+}
+
+// var firstNode = new Node("Pre-Physiology");
+// // firstNode.addParent("Physio-parent");
+// firstNode.addChild("Anthropology");
+// firstNode.addChild("Anthropology");
+// firstNode.addChild("Chemistry");
+
+// console.log(firstNode);
+// start index at 1...how to increment parentNode count?
+function buildTree(inputArray, parentNode, index){
+	if(index == inputArray.length){
+		// terminate
+		// console.log("base case");
+		return;
+	}else{
+		// inputArray[index]; // name of child
+		// console.log(inputArray[index]);
+		var child = parentNode.addChild(inputArray[index]);
+		child.setLevel(index);
+		// console.log(child);
+		buildTree(inputArray, child, index + 1);
+	}
+}
+
+function printLevel(parentNode, level){
+	if(parentNode.level == level)
+		parentNode.printInfo();
+	// need to go deeper
+	else if(parentNode.level < level){
+		parentNode.children.forEach(
+			function(element){
+				printLevel(element, level);
+			}
+		);
+	}
+}
+
+function update(source, tree, svg, i){
+
+	// Compute new tree layout
+	var nodes = tree.nodes(root).reverse(),
+			links = tree.links(nodes);
+
+	console.log(nodes);
+
+	// Normalize for fixed-depth
+	nodes.forEach(function(d){ d.y = d.depth * 180; });
+
+	// Declare the nodes
+	var node = svg.selectAll("g.node")
+			.data(nodes, function(d){ return d.id || (d.id = ++i); });
+
+	var nodeEnter = node.enter().append("g")
+			.attr("class", "node")
+			.attr("transform", function(d){
+				return "translate(" + d.y + "," + d.x + ")"; 
+			});
+
+	nodeEnter.append("circle")
+			.attr("r", 10)
+			.style("fill", "#fff");
+
+	nodeEnter.append("text")
+			.attr("x", function(d){
+				return d.children || d._children ? -13 : 13;
+			})
+			.attr("dy", ".35em")
+			.attr("text-anchor", function(d){
+				return d.children || d._children ? "end" : "start";
+			})
+			.text(function(d){ return d.name; })
+			.style("fill-opacity", 1);
+
+	// declare links
+	var link = svg.selectAll("path.link")
+			.data(links, function(d){ return d.target.id; });
+
+	// enter links
+	link.enter().insert("path", "g")
+			.attr("class", "link")
+			.attr("d", diagonal);
+}
+
+var student_data;
+var maj_data;
+
+var searchingForMajor = "Anthropology";
+var searchingForSemester = "2121";
+
+// info of students in that major
+var studentDataArray = [];
+
+d3.csv("newData3.csv", function(error, data)
+	{
+		if(error) console.log(error);
+		else{
+			console.log("Success!");
+
+			maj_data = d3.nest()
+						.key(function(d){ return d.plan_descr; })
+						.sortKeys(d3.ascending)
+                        .key(function(d){ return d.STRM; })
+                        .sortKeys(d3.ascending)
+						.entries(data);
+
+			// console.log(maj_data);
+
+			/* GET SUBSET */
+			var subset = binarySearch(searchingForMajor, maj_data).values;
+			// console.log(subset);
+
+			// optional additional splittings
+			subset = binarySearch(searchingForSemester, subset).values;
+			// console.log(subset);
+
+			// nested by student id then semester
+			student_data = d3.nest()
+								.key(function(d){ return d.PERSON_SID; })
+								.sortKeys(d3.ascending)
+								.key(function(d){ return d.STRM; })
+                        		.sortKeys(d3.ascending)
+								.entries(data);
+
+			// console.log(student_data);
+
+			// sids of students in that major
+			var studentArray = [];
+
+			subset.forEach(
+				function(element){
+					// console.log(element.PERSON_SID);
+					studentArray.push(element.PERSON_SID);
+				}
+			);
+
+			// console.log("studentArray is");
+			// console.log(studentArray);
+
+			studentArray.forEach(
+				function(element){
+					studentDataArray.push(binarySearch(element, student_data));
+				}
+			);
+
+			console.log("studentDataArray is");
+			console.log(studentDataArray);
+
+			var studentString = {};
+
+studentDataArray.forEach(
+	function(element){
+		var allSem = element.values; // gives all semesters
+		var seenSemesters = [];
+		allSem.forEach(
+			function(oneSem){
+				// console.log(oneSem.key);
+				if(searchingForSemester.localeCompare(oneSem.key) <= 0 && seenSemesters.indexOf(oneSem.key) == -1){
+					var majorAdded = false;
+					oneSem.values.forEach(
+						function(aMajor){
+							// if the same major is one of their majors
+							if(searchingForMajor == aMajor.plan_descr && majorAdded == false){
+								// include in string
+								if(studentString[element.key] == null)
+									studentString[element.key] = aMajor.plan_descr;
+								else
+									studentString[element.key] = studentString[element.key] + "$" + aMajor.plan_descr;
+								majorAdded = true;
+								// break;
+							}
+						}
+					);
+					if(majorAdded == false){
+						if(studentString[element.key] == null)
+							studentString[element.key] = oneSem.values[0].plan_descr;
+						else
+							studentString[element.key] = studentString[element.key] + "$" + oneSem.values[0].plan_descr;
+					}
+					seenSemesters.push(oneSem.key);
+				}
+			}
+		);
+	}
+);
+
+console.log(studentString);
+
+/* CONSTRUCT TREE DATA STRUCTURE */
+var primaryNode = new Node(searchingForMajor);
+for(var key in studentString){
+	if(studentString.hasOwnProperty(key)){
+		// console.log(key);
+		// console.log(studentString[key]);
+		// console.log(studentString[key].split("$"));
+		primaryNode.count++;
+		buildTree(studentString[key].split("$"), primaryNode, 1);
+		// studentString[key].split("$").forEach(
+		// 	function(element){
+		// 		buildTree()
+		// 	}
+		// );
+	}
+}
+console.log(primaryNode);
+// primaryNode.printTree();
+
+/* CONSTRUCT TREE MODEL */
+var margin = {top: 20, right: 120, bottom: 20, left: 120},
+		width = 960 - margin.right - margin.left;
+		height = 900 - margin.top - margin.bottom;
+
+var i = 0;
+
+var tree = d3.layout.tree()
+		.size([height, width]);
+
+var diagonal = d3.svg.diagonal()
+		.projection(function(d){ return [d.y, d.x]; });
+
+var svg = d3.select("body").append("svg")
+		.attr("width", width + margin.right + margin.left)
+		.attr("height", height + margin.top + margin.bottom)
+		.append("g")
+		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+root = primaryNode;
+// update(root, tree, svg, i);
+
+var nodes = tree.nodes(root).reverse(),
+			links = tree.links(nodes);
+
+	console.log(nodes);
+
+	// Normalize for fixed-depth
+	nodes.forEach(function(d){ d.y = d.depth * 180; });
+
+	// Declare the nodes
+	var node = svg.selectAll("g.node")
+			.data(nodes, function(d){ return d.id || (d.id = ++i); });
+
+	var nodeEnter = node.enter().append("g")
+			.attr("class", "node")
+			.attr("transform", function(d){
+				return "translate(" + d.y + "," + d.x + ")"; 
+			});
+
+	nodeEnter.append("circle")
+			.attr("r", 10)
+			.style("fill", "#fff");
+
+	nodeEnter.append("text")
+			.attr("x", function(d){
+				return d.children || d._children ? -13 : 13;
+			})
+			.attr("dy", ".35em")
+			.attr("text-anchor", function(d){
+				return d.children || d._children ? "end" : "start";
+			})
+			.text(function(d){ return d.name; })
+			.style("fill-opacity", 1);
+
+	// declare links
+	var link = svg.selectAll("path.link")
+			.data(links, function(d){ return d.target.id; });
+
+	// enter links
+	link.enter().insert("path", "g")
+			.attr("class", "link")
+			.attr("d", diagonal);
+
+						
+		}
+	}
+);
+
+
+
+</script>
+</body>
+</html>
