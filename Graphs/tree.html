@@ -75,11 +75,12 @@ function binarySearch(maj, dataArray){
 			upperBound = pivot - 1;
 		else return dataArray[pivot];
 		pivot = Math.floor((lowerBound+upperBound)/2);
+		if(dataArray[pivot] == null){ 
+			// console.log(maj + " is empty");
+			return;
+		}
 		currMaj = dataArray[pivot].key;
 	}
-
-	// does not account for values we can't find
-
 }
 
 function Node(name){
@@ -555,12 +556,26 @@ function processData(subset){
 function processDataAndCreateTree(){
 
 	/* GET SUBSET */
-	var subset = binarySearch(searchingForMajor, maj_data).values;
+	var subset = binarySearch(searchingForMajor, maj_data);
 	// console.log(subset);
 
+	if(subset == null){
+		console.log(searchingForMajor + " for semester " + findSemester(searchingForSemester) + " is empty");
+		return;
+	}
+
+	subset = subset.values;
+
 	// optional additional splittings
-	subset = binarySearch(searchingForSemester, subset).values;
+	subset = binarySearch(searchingForSemester, subset);
 	// console.log(subset);
+
+	if(subset == null){
+		console.log(searchingForMajor + " for semester " + findSemester(searchingForSemester) + " is empty");
+		return;
+	}
+
+	subset = subset.values;
 
 	var studentString = processData(subset);
 
