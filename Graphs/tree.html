@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <title>Tree</title>
   <script type="text/javascript" src="d3/d3.js"></script>
+  <script src="jquery.js"></script>
   <style type="text/css">
 
   	/*#ghostID{
@@ -18,7 +19,7 @@
       }
 
 
-	.node circle {
+	.node rect {
 	  fill: #fff;
 	  stroke: steelblue;
 	  stroke-width: 3px;
@@ -90,12 +91,20 @@ function Node(name){
 	this.children = [];
 	this.level = 0;
 	this.isLeaf = true;
+	this.height = 0;
+	this.shift = 0;
 }
 
 Node.prototype = {
 	constructor: Node,
 	setLevel:function(level){
 		this.level = level;
+	},
+	setHeight:function(height){
+		this.height = height;
+	},
+	setShift:function(shift){
+		this.shift = shift;
 	},
 	seeIfChildExists:function(childName){
 		// console.log("Child name is: " + childName);
@@ -143,6 +152,7 @@ Node.prototype = {
 			for(i = 0; i < size; i++){
 				var child;
 				child = new Node("ghost");
+				child.setHeight(20);
 				this.children.push(child);
 			}
 		}else{
@@ -305,6 +315,9 @@ function constructTree(primNode){
 			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 	root = primNode;
+	var hei = processHeights(root);
+	root.setHeight(hei);
+	console.log("Hei: " + hei);
 	// update(root, tree, svg, i);
 
 	var nodes = tree.nodes(root).reverse(),
@@ -314,7 +327,11 @@ function constructTree(primNode){
 	// console.log(links);
 
 	// Normalize for fixed-depth
-	nodes.forEach(function(d){ d.y = d.depth * 180; });
+	nodes.forEach(
+	    function(d){ 
+			d.y = d.depth * 180; 
+		}
+	);
 
 	// Declare the nodes
 	var node = svg.selectAll("g.node")
@@ -333,13 +350,76 @@ function constructTree(primNode){
 				if(ghostsHidden && d.name == "ghost") return "hidden";
 				else return "visible";
 			})
-			.attr("transform", function(d){
+			/*.attr("transform", function(d){
+				if(d.name != "ghost") console.log("Name: " + d.name + "\td.y: " + d.y + "\td.x: " + d.x);
 				return "translate(" + d.y + "," + d.x + ")"; 
-			});
+			})*/;
 
-	nodeEnter.append("circle")
-			.attr("r", 10)
+	nodeEnter.append("rect")
+			.attr("width", 20)
+			.attr("height",
+				function(d){
+					var maxX = 0;
+					var maxHeight = 0;
+					var minX = 90000;
+					var minHeight = 0;
+
+					if(d.children == null) return d.height;
+
+					d.children.forEach(
+						function(element){
+							// look at each d.x value and decide what's the max/min
+							if(element.x > maxX){
+								maxX = element.x;
+								maxHeight = element.height;
+							}
+							if(element.x < minX){
+								minX = element.x;
+								minHeight = element.height;
+							}
+						}
+					);
+					
+					// takes highest and lowest, height of rect of highest/2 and same for lowest
+					d.setHeight(maxX - minX + (maxHeight/2) + (minHeight/2));
+					console.log("Name: " + d.name + "\tHeight: " + d.height);
+					return d.height;
+					// return d.height;
+				} 
+			)
 			.style("fill", "#fff");
+
+	nodeEnter.attr("transform", function(d){
+				var rectHeight = $(d3.select(this).select("rect")[0]).attr('height');
+				var maxX = 0;
+				var maxHeight = 0;
+				var minX = 90000;
+				var minHeight = 0;
+
+				if(d.children == null) return "translate(" + d.y + "," + (d.x - (rectHeight/2)) + ")";
+
+				d.children.forEach(
+					function(element){
+						// look at each d.x value and decide what's the max/min
+						if(element.x > maxX){
+							maxX = element.x;
+							maxHeight = element.height;
+						}
+						if(element.x < minX){
+							minX = element.x;
+							minHeight = element.height;
+						}
+					}
+				);
+				// console.log("max: " + maxX + "\tmin: " + minX);
+				// d.setHeight(maxX - minX + (maxHeight/2) + (minHeight/2));
+				// return maxX - minX + (maxHeight/2) + (minHeight/2);
+				// shift up by the x value that's highest up then subtract the
+				// shape that is highest up/2
+				var modifiedX = minX - (minHeight/2);
+				// d.x = minX;
+				return "translate(" + d.y + "," + modifiedX + ")"; 
+			});
 
 	nodeEnter.append("text")
 			.attr("x", function(d){
@@ -584,6 +664,24 @@ function processDataAndCreateTree(){
 	// console.log(primaryNode);
 	// primaryNode.printTree();
 	constructTree(primaryNode);
+}
+
+function processHeights(node){
+
+	if(node.children == null){
+		node.setHeight(20);
+		return node.height;
+	}
+
+    // node.height = 0;
+	node.children.forEach(
+		function(elem){
+			node.setHeight(node.height += processHeights(elem));
+		}
+	);
+
+	console.log("Name: " + node.name + "\tHeight: " + node.height);
+	return node.height;
 }
 
 </script>
