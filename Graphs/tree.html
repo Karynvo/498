@@ -89,10 +89,11 @@ function Node(name){
 	// this.parent = null;
 	this.count = 1;
 	this.children = [];
-	this.level = 0;
+	// this.level = 0;
 	this.isLeaf = true;
-	this.height = 0;
-	this.shift = 0;
+	this.height = 20;
+	// this.shift = 0;
+	// this.maxDepth = 0;
 }
 
 Node.prototype = {
@@ -143,10 +144,11 @@ Node.prototype = {
 		this.isLeaf = false;
 		return child;
 	},
-	addGhost:function(){
+	addGhost:function(maxDepth){
 		if(this.isLeaf){
 			var i;
 			var size = this.count;
+			this.children = [];
 			while(size > 50)
 				size = size/5;
 			for(i = 0; i < size; i++){
@@ -154,11 +156,21 @@ Node.prototype = {
 				child = new Node("ghost");
 				child.setHeight(20);
 				this.children.push(child);
+				var currDepth = this.depth+1;
+				while((maxDepth+1) != currDepth){
+					var additionalGhost = new Node("ghost");
+					additionalGhost.setHeight(20);
+					child.children = [];
+					child.children.push(additionalGhost);
+					child = additionalGhost;
+					currDepth++;
+				}
+				
 			}
 		}else{
 			this.children.forEach(
 				function(child){
-					child.addGhost();
+					child.addGhost(maxDepth);
 				}
 			);
 		}
@@ -200,20 +212,6 @@ Node.prototype = {
 // start index at 1...how to increment parentNode count?
 function buildTree(inputArray, parentNode, index){
 	if(index == inputArray.length){
-		// terminate
-		// console.log("name is: " + parentNode.name);
-		// console.log("level is: " + parentNode.level);
-		// console.log("count is: " + parentNode.count);
-
-		// if(parentNode.children.length < 1){
-		// 	console.log("no children");
-		// 	parentNode.isLeaf = true;
-		// }
-
-		// if(parentNode.isLeaf){
-		// 	parentNode.addGhost();
-		// }
-
 		return;
 	}else{
 		// inputArray[index]; // name of child
@@ -238,52 +236,6 @@ function printLevel(parentNode, level){
 		);
 	}
 }
-
-// function update(source, tree, svg, i){
-
-// 	// Compute new tree layout
-// 	var nodes = tree.nodes(root).reverse(),
-// 			links = tree.links(nodes);
-
-// 	console.log(nodes);
-
-// 	// Normalize for fixed-depth
-// 	nodes.forEach(function(d){ d.y = d.depth * 180; });
-
-// 	// Declare the nodes
-// 	var node = svg.selectAll("g.node")
-// 			.data(nodes, function(d){ return d.id || (d.id = ++i); });
-
-// 	var nodeEnter = node.enter().append("g")
-// 			.attr("class", "node")
-// 			.attr("transform", function(d){
-// 				return "translate(" + d.y + "," + d.x + ")"; 
-// 			});
-
-// 	nodeEnter.append("circle")
-// 			.attr("r", 10)
-// 			.style("fill", "#fff");
-
-// 	nodeEnter.append("text")
-// 			.attr("x", function(d){
-// 				return d.children || d._children ? -13 : 13;
-// 			})
-// 			.attr("dy", ".35em")
-// 			.attr("text-anchor", function(d){
-// 				return d.children || d._children ? "end" : "start";
-// 			})
-// 			.text(function(d){ return d.name; })
-// 			.style("fill-opacity", 1);
-
-// 	// declare links
-// 	var link = svg.selectAll("path.link")
-// 			.data(links, function(d){ return d.target.id; });
-
-// 	// enter links
-// 	link.enter().insert("path", "g")
-// 			.attr("class", "link")
-// 			.attr("d", diagonal);
-// }
 
 /* CONSTRUCT TREE MODEL */
 function constructTree(primNode){
@@ -315,14 +267,12 @@ function constructTree(primNode){
 			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 	root = primNode;
-	var hei = processHeights(root);
-	root.setHeight(hei);
-	console.log("Hei: " + hei);
 	// update(root, tree, svg, i);
 
 	var nodes = tree.nodes(root).reverse(),
 				links = tree.links(nodes);
 
+	// console.log(root);
 	// console.log(nodes);
 	// console.log(links);
 
@@ -332,6 +282,8 @@ function constructTree(primNode){
 			d.y = d.depth * 180; 
 		}
 	);
+
+	root.x = calculateX(root);
 
 	// Declare the nodes
 	var node = svg.selectAll("g.node")
@@ -350,76 +302,18 @@ function constructTree(primNode){
 				if(ghostsHidden && d.name == "ghost") return "hidden";
 				else return "visible";
 			})
-			/*.attr("transform", function(d){
-				if(d.name != "ghost") console.log("Name: " + d.name + "\td.y: " + d.y + "\td.x: " + d.x);
+			.attr("transform", function(d){
+
+				// if no children, then it's a ghost. 
+				// if(d.children == null) return "translate(" + d.y + "," + (d.x - (d.height/2)) + ")";
+
 				return "translate(" + d.y + "," + d.x + ")"; 
-			})*/;
+			});
 
 	nodeEnter.append("rect")
 			.attr("width", 20)
-			.attr("height",
-				function(d){
-					var maxX = 0;
-					var maxHeight = 0;
-					var minX = 90000;
-					var minHeight = 0;
-
-					if(d.children == null) return d.height;
-
-					d.children.forEach(
-						function(element){
-							// look at each d.x value and decide what's the max/min
-							if(element.x > maxX){
-								maxX = element.x;
-								maxHeight = element.height;
-							}
-							if(element.x < minX){
-								minX = element.x;
-								minHeight = element.height;
-							}
-						}
-					);
-					
-					// takes highest and lowest, height of rect of highest/2 and same for lowest
-					d.setHeight(maxX - minX + (maxHeight/2) + (minHeight/2));
-					console.log("Name: " + d.name + "\tHeight: " + d.height);
-					return d.height;
-					// return d.height;
-				} 
-			)
+			.attr("height", function(d){ return d.height; })
 			.style("fill", "#fff");
-
-	nodeEnter.attr("transform", function(d){
-				var rectHeight = $(d3.select(this).select("rect")[0]).attr('height');
-				var maxX = 0;
-				var maxHeight = 0;
-				var minX = 90000;
-				var minHeight = 0;
-
-				if(d.children == null) return "translate(" + d.y + "," + (d.x - (rectHeight/2)) + ")";
-
-				d.children.forEach(
-					function(element){
-						// look at each d.x value and decide what's the max/min
-						if(element.x > maxX){
-							maxX = element.x;
-							maxHeight = element.height;
-						}
-						if(element.x < minX){
-							minX = element.x;
-							minHeight = element.height;
-						}
-					}
-				);
-				// console.log("max: " + maxX + "\tmin: " + minX);
-				// d.setHeight(maxX - minX + (maxHeight/2) + (minHeight/2));
-				// return maxX - minX + (maxHeight/2) + (minHeight/2);
-				// shift up by the x value that's highest up then subtract the
-				// shape that is highest up/2
-				var modifiedX = minX - (minHeight/2);
-				// d.x = minX;
-				return "translate(" + d.y + "," + modifiedX + ")"; 
-			});
 
 	nodeEnter.append("text")
 			.attr("x", function(d){
@@ -561,8 +455,15 @@ function createTreeStructure(studentStr){
 			buildTree(studentStr[key].split("$"), primaryNode, 1);
 		}
 	}
-	primaryNode.addGhost();
-	console.log(primaryNode);
+	// console.log("tree struct");
+	// console.log(primaryNode);
+	// might be faster to traverse whole tree to find max depth, but too lazy
+	var tree = d3.layout.tree();
+	var nodes = tree.nodes(primaryNode).reverse();
+	var maxDepth = findMaxDepth(nodes);
+	primaryNode.addGhost(maxDepth);
+	// console.log("Max depth is: " + maxDepth);
+	// console.log(primaryNode);
 	return primaryNode;
 }
 
@@ -666,22 +567,41 @@ function processDataAndCreateTree(){
 	constructTree(primaryNode);
 }
 
-function processHeights(node){
-
+function calculateX(node){
 	if(node.children == null){
-		node.setHeight(20);
-		return node.height;
+		// draw ghosts 10px higher than normal (shift)
+		// node.x refers to the top of the shape
+		node.x = node.x + node.height/2;
+		return node.x;
 	}
 
-    // node.height = 0;
+	var minX = 99999;
+	var maxX = 0;
+	var maxHeight = 0;
+	var currX = -5;
 	node.children.forEach(
 		function(elem){
-			node.setHeight(node.height += processHeights(elem));
+			currX = calculateX(elem);
+			if(currX < minX)
+				minX = currX;
+			if(currX > maxX){
+				maxX = currX;
+				maxHeight = elem.height;
+			}
 		}
 	);
+	node.x = minX;
+	node.height = maxX - minX + maxHeight;
+	return node.x;
+}
 
-	console.log("Name: " + node.name + "\tHeight: " + node.height);
-	return node.height;
+function findMaxDepth(nodes){
+	var largest = 0;
+	nodes.forEach(function(element){
+		if(element.depth > largest)
+			largest = element.depth;
+	});
+	return largest;
 }
 
 </script>
