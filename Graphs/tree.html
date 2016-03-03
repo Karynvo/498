@@ -206,6 +206,37 @@ Node.prototype = {
 				biggestNumber = biggestNumber + element.height();
 			}
 		);
+	},
+	getNumGhosts:function(){
+		var runningSum = 0;
+		if(this.children.length == 0){
+			runningSum++;
+		}else{
+			this.children.forEach(
+				function(element){
+					runningSum += element.getNumGhosts();
+				}
+			);
+		}
+		return runningSum;
+	},
+	removeSmallNodes:function(){
+		if(this.children.length == 0) return;
+		else{
+			var newChildrenArray = [];
+			this.children.forEach(
+				function(child){
+					if(child.count > currMinCount){
+						newChildrenArray.push(child);
+						child.removeSmallNodes();
+						if(child.children.length == 0)
+							child.isLeaf = true;
+					}
+					//child is excluded from children list
+				}
+			);
+			this.children = newChildrenArray;
+		}
 	}
 }
 
@@ -239,9 +270,13 @@ function printLevel(parentNode, level){
 
 /* CONSTRUCT TREE MODEL */
 function constructTree(primNode){
+	// console.log("primNode.maxDepth is " + primNode.maxDepth);
+	// console.log("numGhosts is: " + primNode.getNumGhosts(primNode.maxDepth));
+	var currHeight = primNode.getNumGhosts(primNode.maxDepth) * 25;
+	// console.log("currHeight is: " + currHeight);
 	var margin = {top: 20, right: 120, bottom: 20, left: 120},
 			width = 2000 - margin.right - margin.left;
-			height = 1200 - margin.top - margin.bottom;
+			height = currHeight - margin.top - margin.bottom;
 
 	var i = 0;
 
@@ -269,8 +304,8 @@ function constructTree(primNode){
 	root = primNode;
 	// update(root, tree, svg, i);
 
-	var nodes = tree.nodes(root).reverse(),
-				links = tree.links(nodes);
+	var nodes = tree.nodes(root).reverse();
+				
 
 	// console.log(root);
 	// console.log(nodes);
@@ -282,6 +317,17 @@ function constructTree(primNode){
 			d.y = d.depth * 180; 
 		}
 	);
+
+	var newNodes = [];
+
+	nodes.forEach(
+	    function(d){ 
+			if(d.count > currMinCount || d.name == "ghost")
+				newNodes.push(d);
+		}
+	);
+
+	nodes = newNodes;
 
 	root.x = calculateX(root);
 
@@ -300,13 +346,10 @@ function constructTree(primNode){
 			})
 			.attr("visibility", function(d){
 				if(ghostsHidden && d.name == "ghost") return "hidden";
+				// else if((d.count <= currMinCount) && (d.name != "ghost")) return "hidden";
 				else return "visible";
 			})
 			.attr("transform", function(d){
-
-				// if no children, then it's a ghost. 
-				// if(d.children == null) return "translate(" + d.y + "," + (d.x - (d.height/2)) + ")";
-
 				return "translate(" + d.y + "," + d.x + ")"; 
 			});
 
@@ -319,19 +362,30 @@ function constructTree(primNode){
 			.attr("x", function(d){
 				return d.children || d._children ? -13 : 13;
 			})
+			.attr("y", function(d){
+				return d.height/2;
+			})
 			.attr("dy", ".35em")
 			.attr("text-anchor", function(d){
 				return d.children || d._children ? "end" : "start";
 			})
 			.text(function(d){ return d.name; })
-			.style("fill-opacity", 1);
+			.style("fill-opacity", 1)
+			.attr("position", "absolute")
+			.attr("z-index", 999);
 
 	nodeEnter.append("title")
 			.text(function(d){ return d.count; });
 
+	recalculateX(nodes);
+
+	var links = tree.links(nodes);
+
 	// declare links
 	var link = svg.selectAll("path.link")
 			.data(links, function(d){ return d.target.id; });
+
+	// console.log(links);
 
 	// enter links
 	link.enter().insert("path", "g")
@@ -343,6 +397,7 @@ function constructTree(primNode){
 			})
 			.attr("visibility", function(d){
 				if(ghostsHidden && d.target.name == "ghost") return "hidden";
+				// else if((d.target.count <= currMinCount) && (d.target.name != "ghost")) return "hidden";
 				else return "visible";
 			})
 			.attr("d", diagonal);
@@ -354,6 +409,7 @@ var semester_data;
 
 var searchingForMajor = "Computer Science";
 var searchingForSemester = "2141";
+var currMinCount = 0;
 
 var ghostsHidden = true;
 
@@ -404,6 +460,21 @@ d3.csv("newData3.csv", function(error, data)
 
 			  selectArea2.select("select").selectAll("option").data(semester_data).enter().append("option").html(function(d){ return findSemester(d.key); }).attr("value", function(d){ return d.key; }).property("selected", function(d){ return d.key == searchingForSemester; });
 
+			  var selectArea3 = d3.select("body").append("div").attr("class", "node-num-select");
+
+			  selectArea3.append("label").html("View nodes greater than: ");
+			  selectArea3.append("select").attr("onchange", "updateShownNodes(this.value)");
+
+			  var vals = [0, 1, 2, 10];
+
+			  selectArea3.select("select").selectAll("option").data(vals).enter()
+			  	.append("option")
+			  	.html(function(d){ 
+			  		return d; 
+			  	})
+			  	.attr("value", function(d){ return d; })
+			  	.property("selected", function(d){ return d == currMinCount; });
+
 			  var button = d3.select("body").append("button").attr("onclick", "toggleGhosts();");
 			  button.html("Toggle Ghosts");
 
@@ -443,6 +514,12 @@ function updateSelectedSemester(newVal){
 	processDataAndCreateTree();
 }
 
+function updateShownNodes(newVal){
+	currMinCount = newVal;
+
+	processDataAndCreateTree();
+}
+
 function createTreeStructure(studentStr){
 	/* CONSTRUCT TREE DATA STRUCTURE */
 	var primaryNode = new Node(searchingForMajor);
@@ -457,10 +534,15 @@ function createTreeStructure(studentStr){
 	}
 	// console.log("tree struct");
 	// console.log(primaryNode);
+	if(currMinCount != 0){ 
+		primaryNode.removeSmallNodes();
+		console.log(primaryNode);
+	}
 	// might be faster to traverse whole tree to find max depth, but too lazy
 	var tree = d3.layout.tree();
 	var nodes = tree.nodes(primaryNode).reverse();
 	var maxDepth = findMaxDepth(nodes);
+	// primaryNode.maxDepth = maxDepth;
 	primaryNode.addGhost(maxDepth);
 	// console.log("Max depth is: " + maxDepth);
 	// console.log(primaryNode);
@@ -593,6 +675,14 @@ function calculateX(node){
 	node.x = minX;
 	node.height = maxX - minX + maxHeight;
 	return node.x;
+}
+
+function recalculateX(nodes){
+	nodes.forEach(
+		function(element){
+			element.x = element.x + element.height/2;
+		}
+	);
 }
 
 function findMaxDepth(nodes){
