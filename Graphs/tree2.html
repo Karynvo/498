@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Tree</title>
+  <script type="text/javascript" src="d3/d3.js"></script>
+  <script src="jquery.js"></script>
+  <script type="text/javascript" src="d3-queue/d3-queue.js"></script>
+  <style type="text/css">
+
+  	/*#ghostID{
+  		visibility: hidden;
+  	}*/
+
+  	div#container {
+        height: 400px;
+        width: 400px;
+        border:2px solid #000;
+        overflow: scroll;
+      }
+
+
+	.node rect {
+	  fill: #fff;
+	  stroke: steelblue;
+	  stroke-width: 3px;
+	}
+
+	.node text { font: 12px sans-serif; }
+
+	.link {
+	  fill: none;
+	  stroke: #ccc;
+	  stroke-width: 2px;
+	}
+	
+    
+  </style>
+</head>
+<body>
+
+<script type="text/javascript">
+function findSemester(code){
+    var baseNumber = parseInt(code) % 2000; // gives something like 114
+
+    var year = Math.floor(baseNumber / 10); // 114 / 10 = 11
+
+    var semester = baseNumber - (year*10); // 114 - 110 = 4
+
+    var returnString;
+    switch(semester){
+      case 4: returnString = "Fall "; break;
+      case 1: returnString = "Spring "; break;
+      default: returnString = "Unknown"; break;
+    }
+
+    returnString = returnString + /*"20" + */year;
+    return returnString;
+  }
+
+function binarySearch(maj, dataArray){
+	var upperBound = dataArray.length-1; // 370
+	var lowerBound = 0;
+	var pivot = Math.floor((lowerBound+upperBound)/2);
+
+	// console.log("pivot is " + pivot);
+	// console.log(dataArray[pivot].key);
+
+	var currMaj = dataArray[pivot].key;
+
+	while(true){
+		if(currMaj.localeCompare(maj) < 0)
+			// is above
+			lowerBound = pivot + 1;
+		else if(currMaj.localeCompare(maj) > 0)
+			// is below
+			upperBound = pivot - 1;
+		else return dataArray[pivot];
+		pivot = Math.floor((lowerBound+upperBound)/2);
+		if(dataArray[pivot] == null){ 
+			// console.log(maj + " is empty");
+			return;
+		}
+		currMaj = dataArray[pivot].key;
+	}
+}
+
+function Node(name){
+	this.name = name;
+	// this.parent = null;
+	this.count = 1;
+	this.children = [];
+	// this.level = 0;
+	this.isLeaf = true;
+	this.height = 20;
+	// this.shift = 0;
+	// this.maxDepth = 0;
+}
+
+Node.prototype = {
+	constructor: Node,
+	setLevel:function(level){
+		this.level = level;
+	},
+	setHeight:function(height){
+		this.height = height;
+	},
+	setShift:function(shift){
+		this.shift = shift;
+	},
+	seeIfChildExists:function(childName){
+		// console.log("Child name is: " + childName);
+		var returnVal = false;
+		this.children.forEach(
+			function(child){
+				// console.log("child.name is: " + child.name);
+				if(child.name == childName){
+					returnVal = true;
+				}
+			}
+		);
+		return returnVal;
+	},
+	retrieveChild:function(childName){
+		var returnVal = null;
+		this.children.forEach(
+			function(child){
+				if(child.name == childName)
+					returnVal = child;
+			}
+		);
+		return returnVal;
+	},
+	addChild:function(childToAdd){
+		// console.log(this.seeIfChildExists(childToAdd));
+		var child;
+		if(this.seeIfChildExists(childToAdd)){
+			// console.log("true");
+			child = this.retrieveChild(childToAdd);
+			child.count++;
+		}else{
+			child = new Node(childToAdd)
+			this.children.push(child);
+		}
+		this.isLeaf = false;
+		return child;
+	},
+	addGhost:function(maxDepth){
+		if(this.isLeaf){
+			var i;
+			var size = this.count;
+			this.children = [];
+			while(size > 50)
+				size = size/5;
+			if(currMinCount > 1){ size = size/(parseFloat(currMinCount)+parseFloat(1)); }
+			for(i = 0; i < size; i++){
+				var child;
+				child = new Node("ghost");
+				child.setHeight(20);
+				this.children.push(child);
+				var currDepth = this.depth+1;
+				while((maxDepth+1) != currDepth){
+					var additionalGhost = new Node("ghost");
+					additionalGhost.setHeight(20);
+					child.children = [];
+					child.children.push(additionalGhost);
+					child = additionalGhost;
+					currDepth++;
+				}
+				
+			}
+		}else{
+			this.children.forEach(
+				function(child){
+					child.addGhost(maxDepth);
+				}
+			);
+		}
+	},
+	addToCount:function(){
+		this.count++;
+	},
+	// addParent:function(par){
+	// 	this.parent = par;
+	// },
+	printInfo:function(){
+		console.log("Level: " + this.level + "\tNode: " + this.name + "\tCount: " + this.count);
+	},
+	printTree:function(){
+		this.printInfo();
+		this.children.forEach(
+			function(element){
+				element.printTree();
+			}
+		);
+	},
+	printInOrder:function(){
+		var i;
+		// 10 is supposed to be the height..fix
+		for(i = 1; i <= 10; i++){
+			printLevel(this, i);
+		}
+	},
+	height:function(){
+		var biggestNumber = 1;
+		this.children.forEach(
+			function(element){
+				biggestNumber = biggestNumber + element.height();
+			}
+		);
+	},
+	getNumGhosts:function(){
+		var runningSum = 0;
+		if(this.children.length == 0){
+			runningSum++;
+		}else{
+			this.children.forEach(
+				function(element){
+					runningSum += element.getNumGhosts();
+				}
+			);
+		}
+		return runningSum;
+	},
+	removeSmallNodes:function(){
+		if(this.children.length == 0) return;
+		else{
+			var newChildrenArray = [];
+			this.children.forEach(
+				function(child){
+					if(child.count > currMinCount){
+						newChildrenArray.push(child);
+						child.removeSmallNodes();
+						if(child.children.length == 0)
+							child.isLeaf = true;
+					}
+					//child is excluded from children list
+				}
+			);
+			this.children = newChildrenArray;
+		}
+	}
+}
+
+// start index at 1...how to increment parentNode count?
+function buildTree(inputArray, parentNode, index){
+	if(index == inputArray.length){
+		return;
+	}else{
+		// inputArray[index]; // name of child
+		// console.log(inputArray[index]);
+		var child = parentNode.addChild(inputArray[index]);
+		child.setLevel(index);
+		// console.log(child);
+		buildTree(inputArray, child, index + 1);
+		// console.log("return");
+	}
+}
+
+function printLevel(parentNode, level){
+	if(parentNode.level == level)
+		parentNode.printInfo();
+	// need to go deeper
+	else if(parentNode.level < level){
+		parentNode.children.forEach(
+			function(element){
+				printLevel(element, level);
+			}
+		);
+	}
+}
+
+/* CONSTRUCT TREE MODEL */
+function constructTree(primNode){
+	// console.log("primNode.maxDepth is " + primNode.maxDepth);
+	// console.log("numGhosts is: " + primNode.getNumGhosts(primNode.maxDepth));
+	var currHeight = primNode.getNumGhosts(primNode.maxDepth) * 25;
+	// var currHeight = 1200;
+	// console.log("currHeight is: " + currHeight);
+	var margin = {top: 20, right: 120, bottom: 20, left: 120},
+			width = 2000 - margin.right - margin.left;
+			height = currHeight/* - margin.top - margin.bottom*/;
+
+	var i = 0;
+
+	var tree = d3.layout.tree()
+			.size([height, width]);
+
+	var diagonal = d3.svg.diagonal()
+			.projection(function(d){ return [d.y, d.x]; });
+
+	var elementExists = document.getElementById("treeSVG");
+
+	if(elementExists)
+		d3.selectAll("#treeSVG").remove();
+
+	// div#container
+	// var container = d3.select('body').append('div')
+	//     .attr('id','container');
+
+	var svg = d3.select("body").append("svg").attr("id", "treeSVG")
+			.attr("width", width + margin.right + margin.left)
+			.attr("height", height + margin.top + margin.bottom)
+			.append("g")
+			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+	root = primNode;
+	// update(root, tree, svg, i);
+
+	var nodes = tree.nodes(root).reverse();
+				
+
+	// console.log(root);
+	// console.log(nodes);
+	// console.log(links);
+
+	// Normalize for fixed-depth
+	nodes.forEach(
+	    function(d){ 
+			d.y = d.depth * 180; 
+		}
+	);
+
+	var newNodes = [];
+
+	nodes.forEach(
+	    function(d){ 
+			if(d.count > currMinCount || d.name == "ghost")
+				newNodes.push(d);
+		}
+	);
+
+	nodes = newNodes;
+
+	root.x = calculateX(root);
+
+	// Declare the nodes
+	var node = svg.selectAll("g.node")
+			.data(nodes, function(d){ return d.id || (d.id = ++i); });
+
+	// console.log(node);
+
+	var nodeEnter = node.enter().append("g")
+			.attr("class", "node")
+			.attr("id", function(d){
+				if(d.name == "ghost")
+					return "ghostID";
+				else return;
+			})
+			.attr("visibility", function(d){
+				if(ghostsHidden && d.name == "ghost") return "hidden";
+				// else if((d.count <= currMinCount) && (d.name != "ghost")) return "hidden";
+				else return "visible";
+			})
+			.attr("transform", function(d){
+				return "translate(" + d.y + "," + d.x + ")"; 
+			});
+
+	nodeEnter.append("rect")
+			.attr("width", 20)
+			.attr("height", function(d){ return d.height; })
+			.style("fill", "#fff");
+
+	nodeEnter.append("text")
+			.attr("x", function(d){
+				return d.children || d._children ? -13 : 13;
+			})
+			.attr("y", function(d){
+				return d.height/2;
+			})
+			.attr("dy", ".35em")
+			.attr("text-anchor", function(d){
+				return d.children || d._children ? "end" : "start";
+			})
+			.text(function(d){ return d.name + "(" + d.count + ")"; })
+			.style("fill-opacity", 1);
+
+	// nodeEnter.append("title")
+	// 		.text(function(d){ return d.count; });
+
+	recalculateX(nodes);
+
+	var links = tree.links(nodes);
+
+	// declare links
+	var link = svg.selectAll("path.link")
+			.data(links, function(d){ return d.target.id; });
+
+	// console.log(links);
+
+	// enter links
+	link.enter().insert("path", "g")
+			.attr("class", "link")
+			.attr("id", function(d){
+				if(d.target.name == "ghost")
+					return "ghostID";
+				else return;
+			})
+			.attr("visibility", function(d){
+				if(ghostsHidden && d.target.name == "ghost") return "hidden";
+				// else if((d.target.count <= currMinCount) && (d.target.name != "ghost")) return "hidden";
+				else return "visible";
+			})
+			.attr("d", diagonal);
+}
+
+var student_data;
+var maj_data;
+var semester_data;
+
+var searchingForMajor = "Computer Science";
+var searchingForSemester = "2141";
+var currMinCount = 0;
+
+var ghostsHidden = true;
+
+d3_queue.queue()
+	.defer(
+		function(callback){
+			d3.json("maj_data.txt", function(error, data){
+				if(error) console.log(error);
+				else{
+					console.log("Success! 1");
+					maj_data = data;
+					callback(null, data);
+				}
+			});
+		}
+	)
+	.defer(
+		function(callback){
+			d3.json("student_data.txt", function(error, data){
+				if(error) console.log(error);
+				else{
+					console.log("Success! 2");
+					student_data = data;
+					callback(null, data);
+				}
+			});
+		}
+	)
+	.defer(
+		function(callback){
+			d3.json("semester_data.txt", function(error, data){
+				if(error) console.log(error);
+				else{
+					console.log("Success! 3");
+					semester_data = data;
+					callback(null, data);
+				}
+			});
+		}
+	)
+	.await(function(error, maj, students, sem){ 
+		if(error) console.log(error); 
+		else{
+			// console.log(maj, students, sem);
+			restOfMain();
+		}
+	});
+
+function restOfMain(){
+	/* DROPDOWN BOX taken from highlightedlinegraph.html*/
+	var selectArea = d3.select("body").append("div").attr("class", "major-select");
+
+	selectArea.append("label").html("Select a major: ");
+	selectArea.append("select").attr("onchange", "updateSelectedMajor(this.value)");
+
+
+	selectArea.select("select").selectAll("option").data(maj_data).enter().append("option").html(function(d){ return d.key; }).attr("value", function(d){ return d.key; }).property("selected", function(d){ return d.key == searchingForMajor; });
+
+	var selectArea2 = d3.select("body").append("div").attr("class", "semester-select");
+
+	selectArea2.append("label").html("Select a semester: ");
+	selectArea2.append("select").attr("onchange", "updateSelectedSemester(this.value)");
+
+
+	selectArea2.select("select").selectAll("option").data(semester_data).enter().append("option").html(function(d){ return findSemester(d.key); }).attr("value", function(d){ return d.key; }).property("selected", function(d){ return d.key == searchingForSemester; });
+
+	var selectArea3 = d3.select("body").append("div").attr("class", "node-num-select");
+
+	selectArea3.append("label").html("View nodes greater than: ");
+	selectArea3.append("select").attr("onchange", "updateShownNodes(this.value)");
+
+	var vals = [0, 1, 2, 10];
+
+	selectArea3.select("select").selectAll("option").data(vals).enter()
+	.append("option")
+	.html(function(d){ 
+		return d; 
+	})
+	.attr("value", function(d){ return d; })
+	.property("selected", function(d){ return d == currMinCount; });
+
+	var button = d3.select("body").append("button").attr("onclick", "toggleGhosts();");
+	button.html("Toggle Ghosts");
+
+
+	/* DROPDOWN BOX END */
+
+	processDataAndCreateTree();
+}
+
+function toggleGhosts(){
+	// console.log("toggling ghosts");
+	var ghosts = d3.selectAll("#ghostID");
+
+	if(ghostsHidden){
+		// console.log("showing ghosts");
+		ghosts.attr("visibility", "visible");
+	}else{
+		// console.log("hiding ghosts");
+		ghosts.attr("visibility", "hidden");
+	}
+
+	ghostsHidden = (!ghostsHidden);
+}
+
+function updateSelectedMajor(newVal){
+	searchingForMajor = newVal;
+
+	processDataAndCreateTree();
+}
+
+function updateSelectedSemester(newVal){
+	searchingForSemester = newVal;
+
+	processDataAndCreateTree();
+}
+
+function updateShownNodes(newVal){
+	currMinCount = newVal;
+	//console.log("currMinCount is: " + currMinCount);
+	processDataAndCreateTree();
+}
+
+function createTreeStructure(studentStr){
+	/* CONSTRUCT TREE DATA STRUCTURE */
+	var primaryNode = new Node(searchingForMajor);
+	for(var key in studentStr){
+		if(studentStr.hasOwnProperty(key)){
+			// console.log(key);
+			// console.log(studentString[key]);
+			// console.log(studentStr[key].split("$"));
+			primaryNode.count++;
+			buildTree(studentStr[key].split("$"), primaryNode, 1);
+		}
+	}
+	// console.log("tree struct");
+	// console.log(primaryNode);
+	if(currMinCount != 0){ 
+		primaryNode.removeSmallNodes();
+		// console.log(primaryNode);
+	}
+	// might be faster to traverse whole tree to find max depth, but too lazy
+	var tree = d3.layout.tree();
+	var nodes = tree.nodes(primaryNode).reverse();
+	var maxDepth = findMaxDepth(nodes);
+	// primaryNode.maxDepth = maxDepth;
+	primaryNode.addGhost(maxDepth);
+	// console.log("Max depth is: " + maxDepth);
+	// console.log(primaryNode);
+	return primaryNode;
+}
+
+function processData(subset){
+	var studentArray = []; // sids of students in that major
+	var studentDataArray = [];
+	var studentString = {};
+
+	subset.forEach(
+		function(element){
+			// console.log(element.PERSON_SID);
+			if(studentArray.indexOf(element.PERSON_SID) < 0){
+				studentArray.push(element.PERSON_SID);
+			}
+		}
+	);
+
+	// console.log("studentArray is");
+	// console.log(studentArray);
+
+	studentArray.forEach(
+		function(element){
+			studentDataArray.push(binarySearch(element, student_data));
+		}
+	);
+
+	// console.log("studentDataArray is");
+	// console.log(studentDataArray);
+
+	studentDataArray.forEach(
+		function(element){
+			var allSem = element.values; // gives all semesters
+			allSem.forEach(
+				function(oneSem){
+					// console.log("one Sem is: " + oneSem.key);
+					if(searchingForSemester.localeCompare(oneSem.key) <= 0/* && seenSemesters.indexOf(oneSem.key) < 0*/){
+						var majorAdded = false;
+						oneSem.values.forEach(
+							function(aMajor){
+								// console.log("major is: " + aMajor.plan_descr + "\tmajorAdded is: " + majorAdded);
+								// if the same major is one of their majors
+								if((searchingForMajor == aMajor.plan_descr) && (majorAdded == false)){
+									// console.log("Adding major: " + aMajor.plan_descr + "\tmajorAdded is now: " + majorAdded);
+									// include in string
+									if(studentString[element.key] == null)
+										studentString[element.key] = aMajor.plan_descr;
+									else
+										studentString[element.key] = studentString[element.key] + "$" + aMajor.plan_descr;
+									majorAdded = true;
+								}
+							}
+						);
+						if(majorAdded == false){
+							// console.log("Adding major: " + aMajor.plan_descr);
+							if(studentString[element.key] == null)
+								studentString[element.key] = oneSem.values[0].plan_descr;
+							else
+								studentString[element.key] = studentString[element.key] + "$" + oneSem.values[0].plan_descr;
+						}
+					}
+				}
+			);
+		}
+	);
+
+	// console.log(studentString);
+
+	return studentString;
+}
+
+function processDataAndCreateTree(){
+
+	/* GET SUBSET */
+	var subset = binarySearch(searchingForMajor, maj_data);
+	// console.log(subset);
+
+	if(subset == null){
+		console.log(searchingForMajor + " for semester " + findSemester(searchingForSemester) + " is empty");
+		return;
+	}
+
+	subset = subset.values;
+
+	// optional additional splittings
+	subset = binarySearch(searchingForSemester, subset);
+	// console.log(subset);
+
+	if(subset == null){
+		console.log(searchingForMajor + " for semester " + findSemester(searchingForSemester) + " is empty");
+		return;
+	}
+
+	subset = subset.values;
+
+	var studentString = processData(subset);
+
+	var primaryNode = createTreeStructure(studentString);
+
+	// console.log(primaryNode);
+	// primaryNode.printTree();
+	constructTree(primaryNode);
+}
+
+function calculateX(node){
+	if(node.children == null){
+		// draw ghosts 10px higher than normal (shift)
+		// node.x refers to the top of the shape
+		node.x = node.x + node.height/2;
+		return node.x;
+	}
+
+	var minX = 99999;
+	var maxX = 0;
+	var maxHeight = 0;
+	var currX = -5;
+	node.children.forEach(
+		function(elem){
+			currX = calculateX(elem);
+			if(currX < minX)
+				minX = currX;
+			if(currX > maxX){
+				maxX = currX;
+				maxHeight = elem.height;
+			}
+		}
+	);
+	node.x = minX;
+	node.height = maxX - minX + maxHeight;
+	return node.x;
+}
+
+function recalculateX(nodes){
+	nodes.forEach(
+		function(element){
+			element.x = element.x + element.height/2;
+		}
+	);
+}
+
+function findMaxDepth(nodes){
+	var largest = 0;
+	nodes.forEach(function(element){
+		if(element.depth > largest)
+			largest = element.depth;
+	});
+	return largest;
+}
+
+</script>
+</body>
+</html>
