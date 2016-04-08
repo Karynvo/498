@@ -151,6 +151,9 @@ Node.prototype = {
 			this.children = [];
 			while(size > 50)
 				size = size/5;
+			if(currMinCount >= 1){ 
+				size = size/(parseFloat(currMinCount)+parseFloat(1)); 
+			}
 			for(i = 0; i < size; i++){
 				var child;
 				child = new Node("ghost");
@@ -273,10 +276,11 @@ function constructTree(primNode){
 	// console.log("primNode.maxDepth is " + primNode.maxDepth);
 	// console.log("numGhosts is: " + primNode.getNumGhosts(primNode.maxDepth));
 	var currHeight = primNode.getNumGhosts(primNode.maxDepth) * 25;
+	// var currHeight = 1200;
 	// console.log("currHeight is: " + currHeight);
 	var margin = {top: 20, right: 120, bottom: 20, left: 120},
 			width = 2000 - margin.right - margin.left;
-			height = currHeight - margin.top - margin.bottom;
+			height = currHeight/* - margin.top - margin.bottom*/;
 
 	var i = 0;
 
@@ -369,13 +373,11 @@ function constructTree(primNode){
 			.attr("text-anchor", function(d){
 				return d.children || d._children ? "end" : "start";
 			})
-			.text(function(d){ return d.name; })
-			.style("fill-opacity", 1)
-			.attr("position", "absolute")
-			.attr("z-index", 999);
+			.text(function(d){ return d.name + "(" + d.count + ")"; })
+			.style("fill-opacity", 1);
 
-	nodeEnter.append("title")
-			.text(function(d){ return d.count; });
+	// nodeEnter.append("title")
+	// 		.text(function(d){ return d.count; });
 
 	recalculateX(nodes);
 
@@ -516,7 +518,7 @@ function updateSelectedSemester(newVal){
 
 function updateShownNodes(newVal){
 	currMinCount = newVal;
-
+	//console.log("currMinCount is: " + currMinCount);
 	processDataAndCreateTree();
 }
 
@@ -536,7 +538,7 @@ function createTreeStructure(studentStr){
 	// console.log(primaryNode);
 	if(currMinCount != 0){ 
 		primaryNode.removeSmallNodes();
-		console.log(primaryNode);
+		// console.log(primaryNode);
 	}
 	// might be faster to traverse whole tree to find max depth, but too lazy
 	var tree = d3.layout.tree();
