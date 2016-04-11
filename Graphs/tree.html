@@ -5,11 +5,16 @@
   <title>Tree</title>
   <script type="text/javascript" src="d3/d3.js"></script>
   <script src="jquery.js"></script>
+  <link href="noUiSlider.8.3.0/nouislider.min.css" rel="stylesheet">
   <style type="text/css">
 
   	/*#ghostID{
   		visibility: hidden;
   	}*/
+
+  	.noUi-target {
+  		width: 400px;
+  	}
 
   	div#container {
         height: 400px;
@@ -32,12 +37,25 @@
 	  stroke: #ccc;
 	  stroke-width: 2px;
 	}
+
+	.selection_class {
+		float: left;
+		padding: 10px;
+	}
+
+/*	#options_div {
+		border: 1px solid BLACK;
+	}*/
 	
     
   </style>
 </head>
 <body>
-
+<!-- <div id="options_div"> -->
+<div id="mandatory_div" class="selection_class"></div>
+<div id="optional_div" class="selection_class"></div>
+<div id="optional_div2" class="selection_class"></div>
+<!-- </div> -->
 <script type="text/javascript">
 function findSemester(code){
     var baseNumber = parseInt(code) % 2000; // gives something like 114
@@ -178,9 +196,9 @@ Node.prototype = {
 			);
 		}
 	},
-	addToCount:function(){
-		this.count++;
-	},
+	// addToCount:function(){
+	// 	this.count++;
+	// },
 	// addParent:function(par){
 	// 	this.parent = par;
 	// },
@@ -412,6 +430,12 @@ var semester_data;
 var searchingForMajor = "Computer Science";
 var searchingForSemester = "2141";
 var currMinCount = 0;
+var selectedGender = "";
+var selectedEth = "";
+var selectedAcPlan = "UGRD";
+var selectedRes = "";
+var lowerAgeBound = 0;
+var upperAgeBound = 100;
 
 var ghostsHidden = true;
 
@@ -445,8 +469,8 @@ d3.csv("newData3.csv", function(error, data)
 								.sortKeys(d3.ascending)
 								.entries(data);
 
-			/* DROPDOWN BOX taken from highlightedlinegraph.html*/
-			  var selectArea = d3.select("body").append("div").attr("class", "major-select");
+			/* LEFT DROPDOWN BOX taken from highlightedlinegraph.html*/
+			  var selectArea = d3.select("#mandatory_div").append("div").attr("class", "major-select");
 
 			  selectArea.append("label").html("Select a major: ");
 			  selectArea.append("select").attr("onchange", "updateSelectedMajor(this.value)");
@@ -454,7 +478,7 @@ d3.csv("newData3.csv", function(error, data)
 
 			  selectArea.select("select").selectAll("option").data(maj_data).enter().append("option").html(function(d){ return d.key; }).attr("value", function(d){ return d.key; }).property("selected", function(d){ return d.key == searchingForMajor; });
 
-			  var selectArea2 = d3.select("body").append("div").attr("class", "semester-select");
+			  var selectArea2 = d3.select("#mandatory_div").append("div");
 
 			  selectArea2.append("label").html("Select a semester: ");
 			  selectArea2.append("select").attr("onchange", "updateSelectedSemester(this.value)");
@@ -462,7 +486,7 @@ d3.csv("newData3.csv", function(error, data)
 
 			  selectArea2.select("select").selectAll("option").data(semester_data).enter().append("option").html(function(d){ return findSemester(d.key); }).attr("value", function(d){ return d.key; }).property("selected", function(d){ return d.key == searchingForSemester; });
 
-			  var selectArea3 = d3.select("body").append("div").attr("class", "node-num-select");
+			  var selectArea3 = d3.select("#mandatory_div").append("div");
 
 			  selectArea3.append("label").html("View nodes greater than: ");
 			  selectArea3.append("select").attr("onchange", "updateShownNodes(this.value)");
@@ -477,17 +501,74 @@ d3.csv("newData3.csv", function(error, data)
 			  	.attr("value", function(d){ return d; })
 			  	.property("selected", function(d){ return d == currMinCount; });
 
-			  var button = d3.select("body").append("button").attr("onclick", "toggleGhosts();");
+			  var button = d3.select("#mandatory_div").append("button").attr("onclick", "toggleGhosts();");
 			  button.html("Toggle Ghosts");
 
 
-			/* DROPDOWN BOX END */
+			/* LEFT DROPDOWN BOX END */
+
+			/* RIGHT DROPDOWN BOXES START */
+			// d3.select("#optional_div").append("label").html("Optional Filters");
+
+			addOptionalDropDown("Gender", "Gender", [ '', 'M', 'F' ], selectedGender);
+
+			addOptionalDropDown("Ethnicity", "Eth", [ '', 'ASIAN', 'BLACK', 'HISPANIC', 'INTERNATIONAL', 'WHITE', 'OTHER' ], selectedEth);
+
+			addOptionalDropDown("Academic Plan", "AcPlan", [ '', 'UGRD', 'GRAD' ], selectedAcPlan);
+
+			addOptionalDropDown("Resident Status", "Res", [ '', 'Resident', 'Non-Resident' ], selectedRes);
+
+			d3.select("#optional_div2").append("label").html("Select an age range").style({"margin-bottom":"40px"});
+
+			d3.select("#optional_div2").append("div").attr("id", "slider");
+
+			var slider = document.getElementById('slider');
+			d3.select("#slider").style({"margin-top":"40px", "margin-left":"10px"});
+
+			noUiSlider.create(slider, {
+				start: [0, 100],
+				step: 1,
+				connect: true,
+				tooltips: [true, true],
+				range: {
+					'min': 0,
+					'max': 100
+				}
+			});
+
+			slider.noUiSlider.on('change', function(values){
+				lowerAgeBound = values[0];
+				console.log("lower bound is: " + lowerAgeBound);
+				upperAgeBound = values[1];
+				console.log("upper bound is: " + upperAgeBound);
+
+				processDataAndCreateTree();
+			});
+
+			// d3.select("#optional_div").append(slider);
+
+			/* RIGHT DROPDOWN BOXES END */
 
 			processDataAndCreateTree();
 		
 		}
 	}
 );
+
+function addOptionalDropDown(label, varSuffix, vals, variable){
+	var selectArea4 = d3.select("#optional_div").append("div");
+
+	selectArea4.append("label").html("Select " + label + ": ");
+	selectArea4.append("select").attr("onchange", "update" + varSuffix + "(this.value)");
+
+	selectArea4.select("select").selectAll("option").data(vals).enter()
+		.append("option")
+		.html(function(d){
+			return d;
+		})
+		.attr("value", function(d){ return d; })
+		.property("selected", function(d){ return d == variable; });
+}
 
 function toggleGhosts(){
 	// console.log("toggling ghosts");
@@ -522,6 +603,40 @@ function updateShownNodes(newVal){
 	processDataAndCreateTree();
 }
 
+function updateGender(gender){
+	selectedGender = gender;
+
+	processDataAndCreateTree();
+}
+
+function updateEth(eth){
+	if(eth == 'INTERNATIONAL')
+		selectedEth = 'ALIEN';
+	else if(eth == 'HISPANIC')
+		selectedEth = 'HISPA';
+	else
+		selectedEth = eth;
+
+	processDataAndCreateTree();
+}
+
+function updateAcPlan(acPlan){
+	selectedAcPlan = acPlan;
+
+	processDataAndCreateTree();
+}
+
+function updateRes(status){
+	if(status == '')
+		selectedRes = '';
+	else if(status == 'Resident')
+		selectedRes = 'R';
+	else
+		selectedRes = 'N';
+
+	processDataAndCreateTree();
+}
+
 function createTreeStructure(studentStr){
 	/* CONSTRUCT TREE DATA STRUCTURE */
 	var primaryNode = new Node(searchingForMajor);
@@ -534,6 +649,7 @@ function createTreeStructure(studentStr){
 			buildTree(studentStr[key].split("$"), primaryNode, 1);
 		}
 	}
+	primaryNode.count--; // subtract 1 for correct count of root node
 	// console.log("tree struct");
 	// console.log(primaryNode);
 	if(currMinCount != 0){ 
@@ -555,6 +671,67 @@ function processData(subset){
 	var studentArray = []; // sids of students in that major
 	var studentDataArray = [];
 	var studentString = {};
+
+	var tempSubset = [];
+
+	/* OPTIONAL FILTERS */
+	if(selectedGender != ''){
+		subset.forEach(
+			function(element){
+				if(element.GENDER_CD == selectedGender)
+					tempSubset.push(element);
+				
+			}
+		);
+		subset = tempSubset;
+	}
+
+	if(selectedEth != ''){
+		tempSubset = [];
+		subset.forEach(
+			function(element){
+				if(element.Ethnicity_Code_EPM_SP == selectedEth)
+					tempSubset.push(element);
+			}
+		);
+		subset = tempSubset;
+	}
+
+	if(selectedAcPlan != ''){
+		tempSubset = [];
+		subset.forEach(
+			function(element){
+				if(element.acad_career == selectedAcPlan)
+					tempSubset.push(element);
+			}
+		);
+		subset = tempSubset;
+	}
+
+	if(selectedRes != ''){
+		tempSubset = [];
+		subset.forEach(
+			function(element){
+				if(element.UA_IPEDS_RESIDENCY == selectedRes)
+					tempSubset.push(element);
+			}
+		);
+		subset = tempSubset;
+	}
+
+	tempSubset = [];
+	subset.forEach(
+		function(element){
+			if((parseFloat(element.UA_AGE) <= upperAgeBound) && (parseFloat(element.UA_AGE) >= lowerAgeBound))
+				tempSubset.push(element);
+		}
+	);
+	subset = tempSubset;
+
+	// console.log("subset is: ");
+	// console.log(subset);
+
+	/* END OPTIONAL FILTERS */
 
 	subset.forEach(
 		function(element){
@@ -697,5 +874,6 @@ function findMaxDepth(nodes){
 }
 
 </script>
+<script src="noUiSlider.8.3.0/nouislider.min.js"></script>
 </body>
 </html>
