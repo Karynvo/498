@@ -164,7 +164,7 @@ Node.prototype = {
 		return child;
 	},
 	addGhost:function(maxDepth){
-		if(this.isLeaf){
+		if(this.isLeaf || typeof this.children === 'undefined'){
 			var i;
 			var size = this.count;
 			this.children = [];
@@ -190,11 +190,16 @@ Node.prototype = {
 				
 			}
 		}else{
-			this.children.forEach(
-				function(child){
-					child.addGhost(maxDepth);
-				}
-			);
+			// if(typeof this.children === 'undefined')
+			// 	console.log(this);
+			// else{
+			// if(typeof this.children.length != "undefined"){
+				this.children.forEach(
+					function(child){
+						child.addGhost(maxDepth);
+					}
+				);
+			// }
 		}
 	},
 	// addToCount:function(){
@@ -231,9 +236,12 @@ Node.prototype = {
 	},
 	getNumGhosts:function(){
 		var runningSum = 0;
+		// if(typeof this.children === 'undefined'){
+		// 	runningSum++;
 		if(this.children.length == 0){
 			runningSum++;
 		}else{
+		// if(typeof this.children.length != "undefined"){
 			this.children.forEach(
 				function(element){
 					runningSum += element.getNumGhosts();
