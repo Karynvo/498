@@ -40,7 +40,8 @@
 
 	.selection_class {
 		float: left;
-		padding: 10px;
+		padding-left: 5px;
+		padding-right: 5px;
 	}
 
 /*	#options_div {
@@ -512,9 +513,9 @@ d3.csv("newData3.csv", function(error, data)
 
 			addOptionalDropDown("Gender", "Gender", [ '', 'M', 'F' ], selectedGender);
 
-			addOptionalDropDown("Ethnicity", "Eth", [ '', 'ASIAN', 'BLACK', 'HISPANIC', 'INTERNATIONAL', 'WHITE', 'OTHER' ], selectedEth);
+			addOptionalDropDown("Ethnicity", "Eth", [ '', 'AMIND', 'ASIAN', 'BLACK', 'HAWA', 'HISPANIC', 'INTERNATIONAL', 'WHITE', 'OTHER' ], selectedEth);
 
-			addOptionalDropDown("Academic Plan", "AcPlan", [ '', 'UGRD', 'GRAD' ], selectedAcPlan);
+			addOptionalDropDown("Academic Plan", "AcPlan", [ '', 'UGRD', 'GRAD', 'LAW', 'PHRM', 'CORR', 'MEDS' ], selectedAcPlan);
 
 			addOptionalDropDown("Resident Status", "Res", [ '', 'Resident', 'Non-Resident' ], selectedRes);
 
@@ -538,9 +539,9 @@ d3.csv("newData3.csv", function(error, data)
 
 			slider.noUiSlider.on('change', function(values){
 				lowerAgeBound = values[0];
-				console.log("lower bound is: " + lowerAgeBound);
+				// console.log("lower bound is: " + lowerAgeBound);
 				upperAgeBound = values[1];
-				console.log("upper bound is: " + upperAgeBound);
+				// console.log("upper bound is: " + upperAgeBound);
 
 				processDataAndCreateTree();
 			});
@@ -728,8 +729,8 @@ function processData(subset){
 	);
 	subset = tempSubset;
 
-	// console.log("subset is: ");
-	// console.log(subset);
+	console.log("subset is: ");
+	console.log(subset);
 
 	/* END OPTIONAL FILTERS */
 
